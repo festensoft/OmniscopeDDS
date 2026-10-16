@@ -1,0 +1,35 @@
+# =============================================================================
+# OmniscopeDDS CI — containerized build and test
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  container-build:
+    name: Container (GCC)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build development image
+        run: docker build -t omniscopedds-dev .
+
+      - name: Configure, build, and test
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            omniscopedds-dev \
+            bash -lc '
+              cmake --preset debug &&
+              cmake --build --preset debug &&
+              ctest --preset debug
+            '

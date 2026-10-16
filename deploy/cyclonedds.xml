@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Cyclone DDS configuration for containerized deployment.
+
+   Multicast:  Works on Docker bridge networks (Compose, single host).
+   Unicast:    Explicit peer list for overlay networks (Swarm, Kubernetes)
+               where multicast is not available.
+-->
+<CycloneDDS>
+   <Domain>
+      <General>
+         <Interfaces>
+            <NetworkInterface autodetermine="true" />
+         </Interfaces>
+         <AllowMulticast>true</AllowMulticast>
+      </General>
+      <Discovery>
+         <Peers>
+            <Peer address="radar" />
+            <Peer address="workstation" />
+            <Peer address="omniscope" />
+         </Peers>
+         <ParticipantIndex>auto</ParticipantIndex>
+      </Discovery>
+   </Domain>
+</CycloneDDS>

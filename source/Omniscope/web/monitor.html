@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f1d1c">
+<title>Omniscope - Dds</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header>
+   <div class="brand">
+      <h1>Omniscope - Dds</h1>
+      <span class="brand-sub">Real-time DDS Traffic Inspector</span>
+   </div>
+   <div class="toolbar">
+      <span class="rec-indicator" id="recIndicator">&#x23FA; REC</span>
+      <button id="btnRecord" onclick="toggleRecord()">Record</button>
+      <button id="btnLoad" onclick="openLoadRecording()">Load Recording</button>
+      <button id="btnPlayback" onclick="togglePlayback()" disabled>Playback</button>
+      <button id="btnClear" onclick="clearMessages()">Clear</button>
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Disconnected</span>
+   </div>
+</header>
+<div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="panels">
+   <!-- Topics pane -->
+   <div class="panel" id="topicsPanel">
+      <div class="panel-header">Topics</div>
+      <div class="panel-body topics-body">
+         <div id="topicsList"></div>
+      </div>
+   </div>
+
+   <!-- Messages pane -->
+   <div class="panel" id="messagesPanel">
+      <div class="panel-header">Messages (<span id="msgCount">0</span>)</div>
+      <div class="panel-body" id="messagesList"></div>
+   </div>
+
+   <!-- Detail pane -->
+   <div class="panel" id="detailPanel">
+      <div class="panel-header">Detail</div>
+      <div class="panel-body detail-layout">
+         <div class="detail-card detail-info">
+            <div id="detailContent">Select a message to view its contents.</div>
+         </div>
+         <div class="detail-card detail-topology">
+            <div class="topology-card-header">
+               <span>Live Topology</span>
+               <span class="topology-card-sub">Topic-centric DDS graph</span>
+            </div>
+            <div id="topologyGraph" class="topology-graph"></div>
+         </div>
+      </div>
+   </div>
+</div>
+
+<footer>
+   <span id="footerInfo">Ready</span>
+   <span id="footerStats"></span>
+</footer>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctxMenu">
+   <div class="ctx-item" id="ctxToggleSub" onclick="ctxToggleSubscribe()"></div>
+</div>
+
+<!-- Load recording file input (hidden) -->
+<input type="file" id="loadRecFile" accept=".dat" style="display:none"
+       onchange="uploadRecording(event)">
+
+<script src="/app.js"></script>
+</body>
+</html>

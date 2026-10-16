@@ -1,0 +1,57 @@
+# =============================================================================
+# OmniscopeDDS — Docker Compose
+#
+# RadarDDSDemo (Radar + Workstation) and Omniscope on a shared DDS domain.
+#
+# Usage:
+#   1. Build the dev base image (one-time, from repo root):
+#        docker build -t omniscopedds-dev .
+#
+#   2. Build and start:
+#        docker compose -f deploy/docker-compose.yml up --build
+#
+#   3. Open Omniscope in your browser:
+#        http://localhost:8080
+#
+#   4. Stop:
+#        docker compose -f deploy/docker-compose.yml down
+# =============================================================================
+
+x-common: &common
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  image: omniscopedds-deploy
+  networks:
+    - dds-net
+  environment:
+    - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
+  volumes:
+    - ./cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
+  restart: on-failure
+
+services:
+  radar:
+    <<: *common
+    container_name: radar
+    command: ["RadarDDSRadar", "0"]
+
+  workstation:
+    <<: *common
+    container_name: workstation
+    command: ["RadarDDSWorkstation", "0"]
+    depends_on:
+      - radar
+
+  omniscope:
+    <<: *common
+    container_name: omniscope
+    command: ["Omniscope", "0", "8080"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - radar
+
+networks:
+  dds-net:
+    driver: bridge
