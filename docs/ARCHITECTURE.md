@@ -10,28 +10,24 @@ boundaries and data flow.
 
 ## Overview
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Browser  ←── HTTP / WebSocket ──→  Omniscope (Crow)        │
-│                                       │                     │
-│                                       ▼                     │
-│                                  ITransport                 │
-│                                       │                     │
-│                                       ▼                     │
-│                                  TransportDds               │
-│                     (JSON ↔ raw bytes for the UI)           │
-│                                       │                     │
-│              ┌────────────────────────┼─────────────────┐   │
-│              ▼                        ▼                 ▼   │
-│     IDiscoveryService      IRawTopicSubscriber  IRawTopicPublisher
-│              │                        │                 │   │
-│              └──────────── CycloneDDS concretes ────────┘   │
-│                              (BlobSertype + builtins)       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  Browser <-->|"HTTP / WebSocket"| Omniscope["Omniscope (Crow)"]
+  Omniscope --> ITransport
+  ITransport --> TransportDds["TransportDds<br/>(JSON ↔ raw bytes for the UI)"]
+  TransportDds --> IDiscoveryService
+  TransportDds --> IRawTopicSubscriber
+  TransportDds --> IRawTopicPublisher
+  IDiscoveryService --> Cyclone["CycloneDDS concretes<br/>(BlobSertype + builtins)"]
+  IRawTopicSubscriber --> Cyclone
+  IRawTopicPublisher --> Cyclone
 
-Typed apps (RadarDDSDemo) skip the inspector path and use
-DDSPublisher<T> / DDSSubscriber<T> with their own IDL.
+  TypedApps["Typed apps (RadarDDSDemo)"]
+  TypedApps -->|"DDSPublisher&lt;T&gt; / DDSSubscriber&lt;T&gt;<br/>+ own IDL"| CycloneTyped["CycloneDDS typed helpers"]
 ```
+
+Typed apps skip the inspector path and use `DDSPublisher<T>` /
+`DDSSubscriber<T>` with their own IDL.
 
 Modules live under `source/`.
 
