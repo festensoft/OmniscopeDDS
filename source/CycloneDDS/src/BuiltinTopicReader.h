@@ -13,7 +13,7 @@
 namespace CycloneDDS
 {
 
-enum class TopicEndpointRole
+enum class TopicEndpointRole : std::uint8_t
 {
    Publisher,
    Subscriber,
@@ -26,11 +26,8 @@ using DiscoveredTopic = DdsCore::DiscoveredTopic;
 /// the domain (appeared=false). The instance_handle uniquely identifies
 /// the DataWriter — callers use it to track per-publisher presence.
 using TopicDiscoveryCallback =
-   std::function<void(const DiscoveredTopic & /*topic*/,
-                      bool /*appeared*/,
-                      TopicEndpointRole /*role*/,
-                      dds_instance_handle_t /*endpointHandle*/)>
-   ;
+    std::function<void(const DiscoveredTopic& /*topic*/, bool /*appeared*/,
+                       TopicEndpointRole /*role*/, dds_instance_handle_t /*endpointHandle*/)>;
 
 /**
  * @brief Polls a built-in topic (publication or subscription) for endpoint
@@ -50,17 +47,17 @@ public:
                       TopicDiscoveryCallback callback);
    ~BuiltinTopicReader();
 
-   BuiltinTopicReader(const BuiltinTopicReader &) = delete;
-   BuiltinTopicReader &operator=(const BuiltinTopicReader &) = delete;
+   BuiltinTopicReader(const BuiltinTopicReader&) = delete;
+   BuiltinTopicReader& operator=(const BuiltinTopicReader&) = delete;
 
 private:
    void pollLoop();
 
-   dds_entity_t           _reader;
-   TopicEndpointRole      _role;
+   dds_entity_t _reader;
+   TopicEndpointRole _role;
    TopicDiscoveryCallback _callback;
-   std::atomic<bool>      _running{true};
-   std::thread            _thread;
+   std::atomic<bool> _running{true};
+   std::thread _thread;
 };
 
 } // namespace CycloneDDS

@@ -14,35 +14,41 @@ namespace CycloneDDS
 {
 
 CycloneRawTopicPublisher::CycloneRawTopicPublisher(dds_entity_t participant, dds_entity_t publisher)
-   : _participant(participant)
-   , _publisher(publisher)
+    : _participant(participant), _publisher(publisher)
 {
 }
 
 CycloneRawTopicPublisher::~CycloneRawTopicPublisher()
 {
-   std::lock_guard lock(_mutex);
-   for (auto &[topic, aw] : _activeWriters)
+   const std::lock_guard lock(_mutex);
+   for (auto& [topic, aw] : _activeWriters)
    {
-      if (aw.writer > 0) dds_delete(aw.writer);
+      if (aw.writer > 0)
+      {
+         dds_delete(aw.writer);
+      }
    }
    _activeWriters.clear();
 }
 
-CycloneRawTopicPublisher::ActiveWriter *
-CycloneRawTopicPublisher::getOrCreateWriter(const std::string &topic, const DdsCore::RawSample &sample)
+CycloneRawTopicPublisher::ActiveWriter* CycloneRawTopicPublisher::getOrCreateWriter(
+    const std::string& topic, const DdsCore::RawSample& sample)
 {
    {
-      std::lock_guard lock(_mutex);
+      const std::lock_guard lock(_mutex);
       auto it = _activeWriters.find(topic);
-      if (it != _activeWriters.end()) return &it->second;
+      if (it != _activeWriters.end())
+      {
+         return &it->second;
+      }
    }
 
-   const std::string &sertypeName = sample.typeName.empty() ? topic : sample.typeName;
-   struct ddsi_sertype *sertype = blobSertypeCreate(sertypeName.c_str());
+   const std::string& sertypeName = sample.typeName.empty() ? topic : sample.typeName;
+   struct ddsi_sertype* sertype = blobSertypeCreate(sertypeName.c_str());
    if (!sertype)
    {
-      GPERROR("CycloneRawTopicPublisher: out of memory creating blob sertype for writer '{}'", topic);
+      GPERROR("CycloneRawTopicPublisher: out of memory creating blob sertype for writer '{}'",
+              topic);
       return nullptr;
    }
 
@@ -52,30 +58,41 @@ CycloneRawTopicPublisher::getOrCreateWriter(const std::string &topic, const DdsC
    // header for why this may be a pre-existing sertype from a
    // CycloneRawTopicSubscriber sharing our participant). Only read the
    // pointer back *after* the call succeeds; never keep the pre-call value.
-   dds_entity_t topicEntity = dds_create_topic_sertype(
-      _participant, topic.c_str(), &sertype, nullptr, nullptr, nullptr);
+   dds_entity_t topicEntity =
+       dds_create_topic_sertype(_participant, topic.c_str(), &sertype, nullptr, nullptr, nullptr);
 
    if (topicEntity < 0)
    {
-      if (sertype) ddsi_sertype_unref(sertype);
-      GPERROR("CycloneRawTopicPublisher: failed to create topic entity for writer '{}' ({})",
-              topic, topicEntity);
+      if (sertype)
+      {
+         ddsi_sertype_unref(sertype);
+      }
+      GPERROR("CycloneRawTopicPublisher: failed to create topic entity for writer '{}' ({})", topic,
+              topicEntity);
       return nullptr;
    }
-   struct ddsi_sertype *sertypeForWriter = sertype;
+   struct ddsi_sertype* sertypeForWriter = sertype;
 
-   dds_qos_t *qos = dds_create_qos();
+   dds_qos_t* qos = dds_create_qos();
    dds_reliability_kind_t reliabilityKind = DDS_RELIABILITY_RELIABLE;
    if (sample.reliability == "best_effort")
+   {
       reliabilityKind = DDS_RELIABILITY_BEST_EFFORT;
+   }
 
    dds_durability_kind_t durabilityKind = DDS_DURABILITY_VOLATILE;
    if (sample.durability == "transient_local")
+   {
       durabilityKind = DDS_DURABILITY_TRANSIENT_LOCAL;
+   }
    else if (sample.durability == "transient")
+   {
       durabilityKind = DDS_DURABILITY_TRANSIENT;
+   }
    else if (sample.durability == "persistent")
+   {
       durabilityKind = DDS_DURABILITY_PERSISTENT;
+   }
 
    dds_qset_reliability(qos, reliabilityKind, DDS_SECS(1));
    dds_qset_durability(qos, durabilityKind);
@@ -98,26 +115,29 @@ CycloneRawTopicPublisher::getOrCreateWriter(const std::string &topic, const DdsC
       return nullptr;
    }
 
-   std::lock_guard lock(_mutex);
-   auto [it, inserted] = _activeWriters.emplace(
-      topic, ActiveWriter{.writer = writer, .sertype = sertypeForWriter});
+   const std::lock_guard lock(_mutex);
+   auto [it, inserted] =
+       _activeWriters.emplace(topic, ActiveWriter{.writer = writer, .sertype = sertypeForWriter});
    GPINFO("CycloneRawTopicPublisher: created replay writer for '{}'", topic);
    return &it->second;
 }
 
-bool CycloneRawTopicPublisher::publish(const std::string &topic, const DdsCore::RawSample &sample)
+bool CycloneRawTopicPublisher::publish(const std::string& topic, const DdsCore::RawSample& sample)
 {
-   ActiveWriter *aw = getOrCreateWriter(topic, sample);
-   if (!aw) return false;
+   ActiveWriter* aw = getOrCreateWriter(topic, sample);
+   if (!aw)
+   {
+      return false;
+   }
 
    ddsrt_iovec_t iov;
    // ddsi_serdata_from_ser_iov only reads from iov to build the serdata; the
    // DDS C API is not const-correct, hence the cast.
-   iov.iov_base = const_cast<uint8_t *>(sample.bytes.data());
-   iov.iov_len  = sample.bytes.size();
+   iov.iov_base = const_cast<uint8_t*>(sample.bytes.data());
+   iov.iov_len = sample.bytes.size();
 
-   struct ddsi_serdata *serdata = ddsi_serdata_from_ser_iov(
-      aw->sertype, SDK_DATA, 1, &iov, sample.bytes.size());
+   struct ddsi_serdata* serdata =
+       ddsi_serdata_from_ser_iov(aw->sertype, SDK_DATA, 1, &iov, sample.bytes.size());
    if (!serdata)
    {
       GPERROR("CycloneRawTopicPublisher: publish('{}') - failed to build serdata", topic);

@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 
-namespace Omniscope
+namespace Omniscope::RawSampleJsonCodec
 {
 
 /**
@@ -19,19 +19,14 @@ namespace Omniscope
  * stored in recordings) — a vendor-agnostic, DDS-library-free concern kept
  * separate from DdsCore's raw-bytes abstraction.
  */
-namespace RawSampleJsonCodec
-{
-
 /// Encode a raw sample as the app's JSON message envelope.
-[[nodiscard]] std::string toJson(const DdsCore::RawSample &sample);
+[[nodiscard]] std::string toJson(const DdsCore::RawSample& sample);
 
 /// Decode a raw sample from the app's JSON message envelope (as produced by
 /// toJson() and stored in recordings). Returns std::nullopt if jsonData is
 /// not valid JSON or is missing/malformed "raw_cdr".
-[[nodiscard]] std::optional<DdsCore::RawSample> fromJson(const std::string &jsonData);
+[[nodiscard]] std::optional<DdsCore::RawSample> fromJson(const std::string& jsonData);
 
-} // namespace RawSampleJsonCodec
-
-} // namespace Omniscope
+} // namespace Omniscope::RawSampleJsonCodec
 
 #endif // RAWSAMPLEJSONCODEC_H_

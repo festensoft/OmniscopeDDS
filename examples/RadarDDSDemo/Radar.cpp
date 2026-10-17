@@ -13,15 +13,14 @@
  * thread can drain them, producing observable sequence-number gaps.
  */
 
-#include "CycloneDDS/DDSPublisher.h"
-#include "CycloneDDS/DDSSubscriber.h"
-#include "LoggerMacros.h"
-#include "RadarTopics.h"
-
 #include "Command.hpp"
 #include "CommandStatus.hpp"
 #include "ComponentStatus.hpp"
+#include "CycloneDDS/DDSPublisher.h"
+#include "CycloneDDS/DDSSubscriber.h"
+#include "LoggerMacros.h"
 #include "RadarAlert.hpp"
+#include "RadarTopics.h"
 #include "RadarTrack.hpp"
 
 #include <atomic>
@@ -41,6 +40,7 @@ using radar_demo::RadarAlert;
 using radar_demo::RadarTrack;
 
 static std::atomic<bool> isRunning{true};
+
 void signalHandler(int)
 {
    isRunning.store(false);
@@ -49,8 +49,8 @@ void signalHandler(int)
 static int64_t nowNs()
 {
    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-             std::chrono::system_clock::now().time_since_epoch())
-      .count();
+              std::chrono::system_clock::now().time_since_epoch())
+       .count();
 }
 
 static void printBanner()
@@ -69,21 +69,20 @@ namespace
 struct SimulatedTrack
 {
    int32_t trackId;
-   double range_m;
-   double azimuth_deg;
-   double elevation_deg;
+   double rangeM;
+   double azimuthDeg;
+   double elevationDeg;
    int32_t sequenceNumber = 0;
 };
 
-CycloneDDS::TopicEntry withEndpointMetadata(CycloneDDS::TopicEntry entry,
-                                            std::string_view appName,
+CycloneDDS::TopicEntry withEndpointMetadata(CycloneDDS::TopicEntry entry, std::string_view appName,
                                             std::string_view endpointName,
                                             std::string_view endpointRole)
 {
-   const std::string metadata = "app_name=" + std::string(appName)
-                              + ";endpoint_name=" + std::string(endpointName)
-                              + ";endpoint_role=" + std::string(endpointRole);
-   dds::core::ByteSeq userData(metadata.begin(), metadata.end());
+   const std::string metadata = "app_name=" + std::string(appName) +
+                                ";endpoint_name=" + std::string(endpointName) +
+                                ";endpoint_role=" + std::string(endpointRole);
+   const dds::core::ByteSeq userData(metadata.begin(), metadata.end());
    const auto qos = dds::core::policy::UserData(userData);
    entry.writerQos << qos;
    entry.readerQos << qos;
@@ -93,7 +92,7 @@ CycloneDDS::TopicEntry withEndpointMetadata(CycloneDDS::TopicEntry entry,
 } // namespace
 
 // NOLINTNEXTLINE
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
    (void)std::signal(SIGINT, signalHandler);
    (void)std::signal(SIGTERM, signalHandler);
@@ -102,7 +101,7 @@ int main(int argc, char *argv[])
    bool stressMode = false;
    for (int i = 1; i < argc; ++i)
    {
-      std::string arg = argv[i];
+      const std::string arg = argv[i];
       if (arg == "--stress")
       {
          stressMode = true;
@@ -115,18 +114,17 @@ int main(int argc, char *argv[])
    GPINFO("Using DDS domain ID: {}, stress mode: {}", domainId, stressMode);
    printBanner();
 
-   RadarDemo::RadarTopics topics;
-   const auto &config = topics.config();
+   const RadarDemo::RadarTopics topics;
+   const auto& config = topics.config();
 
    // Constructed and warmed up before subscribing to Command, so the real
    // ack path in the Command listener callback never triggers lazy
    // Topic/DataWriter creation from within that callback.
    CycloneDDS::DDSPublisher<CommandStatus> commandStatusPub(
-      domainId,
-      withEndpointMetadata(
-         config.getEntry(std::string(RadarDemo::COMMAND_STATUS_TOPIC)),
-         "RadarDDSRadar", "RadarCommandStatusPub", "publisher"),
-      "RadarCommandStatusPub");
+       domainId,
+       withEndpointMetadata(config.getEntry(std::string(RadarDemo::COMMAND_STATUS_TOPIC)),
+                            "RadarDDSRadar", "RadarCommandStatusPub", "publisher"),
+       "RadarCommandStatusPub");
    {
       CommandStatus startup;
       startup.header().sender_id("Radar");
@@ -139,44 +137,38 @@ int main(int argc, char *argv[])
    }
 
    CycloneDDS::DDSPublisher<RadarTrack> trackPub(
-      domainId,
-      withEndpointMetadata(
-         config.getEntry(std::string(RadarDemo::RADAR_TRACK_TOPIC)),
-         "RadarDDSRadar", "RadarTrackPub", "publisher"),
-      "RadarTrackPub");
+       domainId,
+       withEndpointMetadata(config.getEntry(std::string(RadarDemo::RADAR_TRACK_TOPIC)),
+                            "RadarDDSRadar", "RadarTrackPub", "publisher"),
+       "RadarTrackPub");
    CycloneDDS::DDSPublisher<ComponentStatus> componentPub(
-      domainId,
-      withEndpointMetadata(
-         config.getEntry(std::string(RadarDemo::COMPONENT_STATUS_TOPIC)),
-         "RadarDDSRadar", "RadarComponentStatusPub", "publisher"),
-      "RadarComponentStatusPub");
+       domainId,
+       withEndpointMetadata(config.getEntry(std::string(RadarDemo::COMPONENT_STATUS_TOPIC)),
+                            "RadarDDSRadar", "RadarComponentStatusPub", "publisher"),
+       "RadarComponentStatusPub");
    CycloneDDS::DDSPublisher<RadarAlert> alertPub(
-      domainId,
-      withEndpointMetadata(
-         config.getEntry(std::string(RadarDemo::RADAR_ALERT_TOPIC)),
-         "RadarDDSRadar", "RadarAlertPub", "publisher"),
-      "RadarAlertPub");
+       domainId,
+       withEndpointMetadata(config.getEntry(std::string(RadarDemo::RADAR_ALERT_TOPIC)),
+                            "RadarDDSRadar", "RadarAlertPub", "publisher"),
+       "RadarAlertPub");
 
    CycloneDDS::DDSSubscriber<Command> commandSub(
-      domainId,
-      withEndpointMetadata(
-         config.getEntry(std::string(RadarDemo::COMMAND_TOPIC)),
-         "RadarDDSRadar", "RadarCommandSub", "subscriber"),
-      "RadarCommandSub");
-   commandSub.subscribe(
-      [&commandStatusPub](const Command &cmd)
-      {
-         GPINFO("[Command] received command_id={} type={} target={}",
-                cmd.command_id(), static_cast<int>(cmd.type()), cmd.target_id());
+       domainId,
+       withEndpointMetadata(config.getEntry(std::string(RadarDemo::COMMAND_TOPIC)), "RadarDDSRadar",
+                            "RadarCommandSub", "subscriber"),
+       "RadarCommandSub");
+   commandSub.subscribe([&commandStatusPub](const Command& cmd) {
+      GPINFO("[Command] received command_id={} type={} target={}", cmd.command_id(),
+             static_cast<int>(cmd.type()), cmd.target_id());
 
-         CommandStatus status;
-         status.header().sender_id("Radar");
-         status.header().timestamp_ns(nowNs());
-         status.command_id(cmd.command_id());
-         status.result(radar_demo::CommandResult::CMDSTATUS_ACCEPTED);
-         status.detail("Command executed");
-         commandStatusPub.publish(status);
-      });
+      CommandStatus status;
+      status.header().sender_id("Radar");
+      status.header().timestamp_ns(nowNs());
+      status.command_id(cmd.command_id());
+      status.result(radar_demo::CommandResult::CMDSTATUS_ACCEPTED);
+      status.detail("Command executed");
+      commandStatusPub.publish(status);
+   });
    commandSub.start();
 
    std::random_device rd;
@@ -184,26 +176,25 @@ int main(int argc, char *argv[])
    std::uniform_real_distribution<> jitter(-0.5, 0.5);
 
    std::vector<SimulatedTrack> tracks = {
-      {1001, 12000.0, 45.0, 5.0, 0},
-      {1002, 8500.0, 120.0, 12.0, 0},
-      {1003, 20000.0, 270.0, 2.0, 0},
+       {1001, 12000.0,  45.0,  5.0, 0},
+       {1002,  8500.0, 120.0, 12.0, 0},
+       {1003, 20000.0, 270.0,  2.0, 0},
    };
 
-   auto publishTrackBatch = [&]()
-   {
-      for (auto &t : tracks)
+   auto publishTrackBatch = [&]() {
+      for (auto& t : tracks)
       {
-         t.range_m += jitter(gen) * 20.0;
-         t.azimuth_deg += jitter(gen);
-         t.elevation_deg += jitter(gen) * 0.1;
+         t.rangeM += jitter(gen) * 20.0;
+         t.azimuthDeg += jitter(gen);
+         t.elevationDeg += jitter(gen) * 0.1;
 
          RadarTrack msg;
          msg.header().sender_id("Radar");
          msg.header().timestamp_ns(nowNs());
          msg.track_id(t.trackId);
-         msg.range_m(t.range_m);
-         msg.azimuth_deg(t.azimuth_deg);
-         msg.elevation_deg(t.elevation_deg);
+         msg.range_m(t.rangeM);
+         msg.azimuth_deg(t.azimuthDeg);
+         msg.elevation_deg(t.elevationDeg);
          msg.radial_velocity_mps(jitter(gen) * 50.0);
          msg.confidence(0.9);
          msg.status(radar_demo::TrackState::TRACK_UPDATED);
@@ -223,7 +214,8 @@ int main(int argc, char *argv[])
       GPINFO("[stress] burst complete ({} samples per track), entering steady state", 500);
    }
 
-   const std::vector<std::string> components = {"transmitter", "receiver", "antenna_servo", "cooling"};
+   const std::vector<std::string> components = {"transmitter", "receiver", "antenna_servo",
+                                                "cooling"};
    int32_t alertSequence = 0;
 
    auto lastTrackPublish = std::chrono::steady_clock::now();
@@ -244,7 +236,7 @@ int main(int argc, char *argv[])
 
       if (now - lastComponentPublish >= std::chrono::seconds(5))
       {
-         for (const auto &componentId : components)
+         for (const auto& componentId : components)
          {
             ComponentStatus cs;
             cs.header().sender_id("Radar");

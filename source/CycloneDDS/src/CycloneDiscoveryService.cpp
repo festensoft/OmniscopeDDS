@@ -11,30 +11,41 @@
 namespace
 {
 
-int durabilityRank(const std::string &durability)
+int durabilityRank(const std::string& durability)
 {
-   if (durability == "persistent") return 3;
-   if (durability == "transient") return 2;
-   if (durability == "transient_local") return 1;
+   if (durability == "persistent")
+   {
+      return 3;
+   }
+   if (durability == "transient")
+   {
+      return 2;
+   }
+   if (durability == "transient_local")
+   {
+      return 1;
+   }
    return 0;
 }
 
-std::string participantLabel(const DdsCore::DiscoveredTopic &dt)
+std::string participantLabel(const DdsCore::DiscoveredTopic& dt)
 {
    if (!dt.endpointName.empty())
+   {
       return dt.endpointName;
+   }
 
    if (!dt.participantId.empty())
    {
       const std::string shortId =
-         dt.participantId.substr(0, std::min<size_t>(8, dt.participantId.size()));
+          dt.participantId.substr(0, std::min<size_t>(8, dt.participantId.size()));
       return "participant " + shortId;
    }
 
    if (!dt.endpointId.empty())
    {
       const std::string shortId =
-         dt.endpointId.substr(0, std::min<size_t>(8, dt.endpointId.size()));
+          dt.endpointId.substr(0, std::min<size_t>(8, dt.endpointId.size()));
       return "endpoint " + shortId;
    }
 
@@ -44,47 +55,53 @@ std::string participantLabel(const DdsCore::DiscoveredTopic &dt)
 std::string historyDepthLabel(int32_t historyDepth)
 {
    if (historyDepth == -1)
+   {
       return "keep_all";
+   }
    return std::format("keep_last({})", historyDepth);
 }
 
-std::string profileKey(const DdsCore::DiscoveredTopic &dt)
+std::string profileKey(const DdsCore::DiscoveredTopic& dt)
 {
    return dt.reliability + "|" + dt.durability + "|" + std::to_string(dt.historyDepth);
 }
 
-std::string profileLabel(const DdsCore::DiscoveredTopic &dt)
+std::string profileLabel(const DdsCore::DiscoveredTopic& dt)
 {
-   return "reliability=" + dt.reliability
-      + ", durability=" + dt.durability
-      + ", history=" + historyDepthLabel(dt.historyDepth);
+   return "reliability=" + dt.reliability + ", durability=" + dt.durability +
+          ", history=" + historyDepthLabel(dt.historyDepth);
 }
 
-std::optional<std::string> mismatchReason(const DdsCore::DiscoveredTopic &publisher,
-                                          const DdsCore::DiscoveredTopic &subscriber)
+std::optional<std::string> mismatchReason(const DdsCore::DiscoveredTopic& publisher,
+                                          const DdsCore::DiscoveredTopic& subscriber)
 {
    std::vector<std::string> reasons;
 
    if (subscriber.reliability == "reliable" && publisher.reliability == "best_effort")
    {
-      reasons.push_back("reliability: publisher is best_effort, subscriber requires reliable");
+      reasons.emplace_back("reliability: publisher is best_effort, subscriber requires reliable");
    }
 
    if (durabilityRank(subscriber.durability) > durabilityRank(publisher.durability))
    {
-      reasons.push_back("durability: publisher is less durable than subscriber requires");
+      reasons.emplace_back("durability: publisher is less durable than subscriber requires");
    }
 
    if (subscriber.historyDepth == -1 && publisher.historyDepth != -1)
    {
-      reasons.push_back("history: subscriber requests KEEP_ALL, publisher offers KEEP_LAST");
+      reasons.emplace_back("history: subscriber requests KEEP_ALL, publisher offers KEEP_LAST");
    }
 
-   if (reasons.empty()) return std::nullopt;
+   if (reasons.empty())
+   {
+      return std::nullopt;
+   }
 
    std::string joined = reasons.front();
    for (size_t i = 1; i < reasons.size(); ++i)
+   {
       joined += "; " + reasons[i];
+   }
    return joined;
 }
 
@@ -106,26 +123,24 @@ struct CycloneDiscoveryService::Impl
       std::map<dds_instance_handle_t, EndpointSnapshot> subscribers;
    };
 
-   void onDiscovery(const DdsCore::DiscoveredTopic &dt, bool appeared,
-                    TopicEndpointRole role, dds_instance_handle_t endpointHandle)
+   void onDiscovery(const DdsCore::DiscoveredTopic& dt, bool appeared, TopicEndpointRole role,
+                    dds_instance_handle_t endpointHandle)
    {
       bool topicListChanged = false;
       {
-         std::lock_guard lock(mutex);
-         auto &state = topics[dt.name];
+         const std::lock_guard lock(mutex);
+         auto& state = topics[dt.name];
          if (appeared)
          {
-            auto &endpoints = (role == TopicEndpointRole::Publisher)
-                                 ? state.publishers
-                                 : state.subscribers;
+            auto& endpoints =
+                (role == TopicEndpointRole::Publisher) ? state.publishers : state.subscribers;
             endpoints[endpointHandle] = EndpointSnapshot{dt};
             topicListChanged = true;
          }
          else
          {
-            auto &endpoints = (role == TopicEndpointRole::Publisher)
-                                 ? state.publishers
-                                 : state.subscribers;
+            auto& endpoints =
+                (role == TopicEndpointRole::Publisher) ? state.publishers : state.subscribers;
             endpoints.erase(endpointHandle);
             topicListChanged = true;
             if (state.publishers.empty() && state.subscribers.empty())
@@ -136,27 +151,36 @@ struct CycloneDiscoveryService::Impl
       }
 
       if (topicListChanged && topicsChangedCb)
+      {
          topicsChangedCb();
+      }
    }
 
-   [[nodiscard]] DdsCore::DiscoveredTopic summarizeTopic(const std::string &topic) const
+   [[nodiscard]] DdsCore::DiscoveredTopic summarizeTopic(const std::string& topic) const
    {
-      std::lock_guard lock(mutex);
+      const std::lock_guard lock(mutex);
       auto it = topics.find(topic);
-      if (it == topics.end()) return {};
+      if (it == topics.end())
+      {
+         return {};
+      }
 
       DdsCore::DiscoveredTopic summary;
       summary.name = topic;
 
-      const auto &state = it->second;
+      const auto& state = it->second;
       summary.publisherCount = static_cast<int32_t>(state.publishers.size());
       summary.subscriberCount = static_cast<int32_t>(state.subscribers.size());
 
-      const DdsCore::DiscoveredTopic *representative = nullptr;
+      const DdsCore::DiscoveredTopic* representative = nullptr;
       if (!state.publishers.empty())
+      {
          representative = &state.publishers.begin()->second.topic;
+      }
       else if (!state.subscribers.empty())
+      {
          representative = &state.subscribers.begin()->second.topic;
+      }
 
       if (representative)
       {
@@ -166,15 +190,17 @@ struct CycloneDiscoveryService::Impl
          summary.historyDepth = representative->historyDepth;
       }
 
-      for (const auto &[_, pub] : state.publishers)
+      for (const auto& [_, pub] : state.publishers)
       {
-         for (const auto &[__, sub] : state.subscribers)
+         for (const auto& [_, sub] : state.subscribers)
          {
             if (auto reason = mismatchReason(pub.topic, sub.topic))
             {
                summary.qosMismatch = true;
                if (summary.qosMismatchReason.empty())
+               {
                   summary.qosMismatchReason = *reason;
+               }
             }
          }
       }
@@ -185,7 +211,7 @@ struct CycloneDiscoveryService::Impl
       std::map<std::string, std::set<std::string>> subscriberProfileApps;
       std::map<std::string, std::string> profileLabels;
 
-      for (const auto &[_, pub] : state.publishers)
+      for (const auto& [_, pub] : state.publishers)
       {
          publisherApps.insert(participantLabel(pub.topic));
          const auto key = profileKey(pub.topic);
@@ -193,7 +219,7 @@ struct CycloneDiscoveryService::Impl
          publisherProfileApps[key].insert(participantLabel(pub.topic));
       }
 
-      for (const auto &[_, sub] : state.subscribers)
+      for (const auto& [_, sub] : state.subscribers)
       {
          subscriberApps.insert(participantLabel(sub.topic));
          const auto key = profileKey(sub.topic);
@@ -204,7 +230,7 @@ struct CycloneDiscoveryService::Impl
       summary.publisherApplications.assign(publisherApps.begin(), publisherApps.end());
       summary.subscriberApplications.assign(subscriberApps.begin(), subscriberApps.end());
 
-      for (const auto &[profile, apps] : publisherProfileApps)
+      for (const auto& [profile, apps] : publisherProfileApps)
       {
          DdsCore::QosProfileUsage usage;
          usage.profile = profileLabels[profile];
@@ -212,7 +238,7 @@ struct CycloneDiscoveryService::Impl
          summary.publisherQosProfiles.push_back(std::move(usage));
       }
 
-      for (const auto &[profile, apps] : subscriberProfileApps)
+      for (const auto& [profile, apps] : subscriberProfileApps)
       {
          DdsCore::QosProfileUsage usage;
          usage.profile = profileLabels[profile];
@@ -233,40 +259,41 @@ struct CycloneDiscoveryService::Impl
 };
 
 CycloneDiscoveryService::CycloneDiscoveryService(dds_entity_t participant)
-   : _impl(std::make_unique<Impl>())
+    : _impl(std::make_unique<Impl>())
 {
    _impl->publisherReader = std::make_unique<BuiltinTopicReader>(
-      participant,
-      DDS_BUILTIN_TOPIC_DCPSPUBLICATION,
-      [this](const DdsCore::DiscoveredTopic &dt, bool appeared, TopicEndpointRole role,
-             dds_instance_handle_t handle)
-      { _impl->onDiscovery(dt, appeared, role, handle); });
+       participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION,
+       [this](const DdsCore::DiscoveredTopic& dt, bool appeared, TopicEndpointRole role,
+              dds_instance_handle_t handle) { _impl->onDiscovery(dt, appeared, role, handle); });
 
    _impl->subscriberReader = std::make_unique<BuiltinTopicReader>(
-      participant,
-      DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION,
-      [this](const DdsCore::DiscoveredTopic &dt, bool appeared, TopicEndpointRole role,
-             dds_instance_handle_t handle)
-      { _impl->onDiscovery(dt, appeared, role, handle); });
+       participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION,
+       [this](const DdsCore::DiscoveredTopic& dt, bool appeared, TopicEndpointRole role,
+              dds_instance_handle_t handle) { _impl->onDiscovery(dt, appeared, role, handle); });
 }
 
 CycloneDiscoveryService::~CycloneDiscoveryService() = default;
 
 std::vector<std::string> CycloneDiscoveryService::topicNames() const
 {
-   std::lock_guard lock(_impl->mutex);
+   const std::lock_guard lock(_impl->mutex);
    std::vector<std::string> names;
    names.reserve(_impl->topics.size());
-   for (const auto &[name, _] : _impl->topics)
+   for (const auto& [name, _] : _impl->topics)
+   {
       names.push_back(name);
+   }
    return names;
 }
 
-std::optional<DdsCore::DiscoveredTopic>
-CycloneDiscoveryService::lookup(const std::string &topic) const
+std::optional<DdsCore::DiscoveredTopic> CycloneDiscoveryService::lookup(
+    const std::string& topic) const
 {
    auto summary = _impl->summarizeTopic(topic);
-   if (summary.name.empty()) return std::nullopt;
+   if (summary.name.empty())
+   {
+      return std::nullopt;
+   }
    return summary;
 }
 
